@@ -49,13 +49,12 @@ def train(model, dataloader, criterion, optimizer, num_epochs):
             corrupted_audio = corrupted_audio.to(device)
             original_audio = original_audio.to(device)
             mask = mask.to(device)
-
             optimizer.zero_grad()
             outputs = model(corrupted_audio)
             loss = criterion(outputs * mask, original_audio * mask)
             loss.backward()
             optimizer.step()
-
+            
         print(f'Epoch [{epoch+1}/{num_epochs}], Loss: {loss.item():.4f}')
 
 def evaluate(model, dataloader):
@@ -83,7 +82,8 @@ learning_rate = 0.001
 packet_loss_rate = 0.1
 
 # Device configuration
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+#device = torch.device('cuda' if torch.cuda.is_available() else 'mps' if torch.backends.mps.is_available() else 'cpu')
+device = torch.device('cpu')
 
 # Load data
 file_list = [os.path.join('audio_data', f) for f in os.listdir('audio_data') if f.endswith('.wav')]
@@ -97,7 +97,6 @@ test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, col
 model = PLCModel(input_size, hidden_size, num_layers).to(device)
 criterion = nn.MSELoss()
 optimizer = optim.Adam(model.parameters(), lr=learning_rate)
-
 # Train and evaluate the model
 train(model, train_loader, criterion, optimizer, num_epochs)
 evaluate(model, test_loader)

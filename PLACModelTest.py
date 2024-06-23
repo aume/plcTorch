@@ -21,7 +21,7 @@ input_size = 1
 hidden_size = 128
 num_layers = 2
 sampling_rate = 44100  # Standard audio sampling rate
-packet_loss_rate = 0.1  # This can be ignored for real-time detection
+packet_loss_rate = 0.1
 
 # Device configuration
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -32,11 +32,10 @@ model.load_state_dict(torch.load('plc_model.pth'))
 model.eval()
 
 # Function to simulate packet loss and conceal it
-def conceal_packet_loss(audio, last_valid_packet):
-    audio_tensor = torch.tensor(audio, dtype=torch.float16).unsqueeze(0).unsqueeze(-1).to(device)
-    corrupted_audio = audio_tensor.clone()
-    if last_valid_packet is not None:
-        corrupted_audio[corrupted_audio == 0] = last_valid_packet[corrupted_audio == 0]
+def conceal_packet_loss(audio):
+    audio_tensor = torch.tensor(audio, dtype=torch.float32).unsqueeze(0).unsqueeze(-1).to(device)
+    mask = (torch.rand(audio_tensor.shape) > packet_loss_rate).float().to(device)
+    corrupted_audio = audio_tensor * mask
 
     with torch.no_grad():
         concealed_audio = model(corrupted_audio)
@@ -46,29 +45,16 @@ def conceal_packet_loss(audio, last_valid_packet):
 # PyAudio setup
 p = pyaudio.PyAudio()
 
-# Initialize variables to keep track of packet states
-last_valid_packet = None
-
 # Define callback function for audio processing
 def callback(indata, frame_count, time_info, status):
-    global last_valid_packet
     if status:
         print(status)
-
-    audio_data = np.frombuffer(indata, dtype=np.float16)
-    
-    # Detect packet loss: assuming zero data indicates a corrupt packet
-    if np.all(audio_data == 0):
-        print("Corrupt packet detected!")
-        if last_valid_packet is not None:
-            audio_data = conceal_packet_loss(audio_data, last_valid_packet)
-    else:
-        last_valid_packet = torch.tensor(audio_data, dtype=torch.float16).unsqueeze(0).unsqueeze(-1).to(device)
-
-    return (audio_data.astype(np.float16).tobytes(), pyaudio.paContinue)
+    audio_data = np.frombuffer(indata, dtype=np.float32)
+    concealed_audio = conceal_packet_loss(audio_data)
+    return (concealed_audio.astype(np.float32).tobytes(), pyaudio.paContinue)
 
 # Open input stream
-stream = p.open(format=pyaudio.paFloat16,
+stream = p.open(format=pyaudio.paFloat32,
                 channels=1,
                 rate=sampling_rate,
                 input=True,
