@@ -76,9 +76,9 @@ def callback(indata, frame_count, time_info, status):
         print("Corrupt packet detected!")
         if last_valid_packet is not None:
             audio_data = conceal_packet_loss(audio_data, last_valid_packet)
-    else:
-        last_valid_packet = torch.tensor(audio_data, dtype=torch.float32).unsqueeze(0).unsqueeze(-1).to(device)
-
+    # else:
+    #     last_valid_packet = torch.tensor(audio_data, dtype=torch.float32).unsqueeze(0).unsqueeze(-1).to(device)
+    last_valid_packet = torch.tensor(audio_data, dtype=torch.float32).unsqueeze(0).unsqueeze(-1).to(device)
     audio_data = (audio_data * 32768.0).astype(np.int16)  # Convert float32 data back to int16
     return (audio_data.tobytes(), pyaudio.paContinue)
 
