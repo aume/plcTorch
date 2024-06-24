@@ -1,3 +1,17 @@
+'''
+PLCModel.py
+An expereiment for audio packet loss concelament using a Recurrent Nueral Network
+Implemented with PyTorch
+
+./audio_data folder is a bunch of wav files for traning
+The program synthesizes lost packets in Dataset class for training and evaluation
+
+outputs tranined RNN model  plc_model.pth for use PLCModelLC
+
+2024
+spiral.ok.ubc.ca
+'''
+
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -76,7 +90,7 @@ def evaluate(model, dataloader):
 input_size = 1  # Mono audio
 hidden_size = 128
 num_layers = 2
-num_epochs = 20
+num_epochs = 2
 batch_size = 16
 learning_rate = 0.001
 packet_loss_rate = 0.1

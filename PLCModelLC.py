@@ -1,8 +1,21 @@
+'''
+PLCModelLC.py
+An expereiment for audio packet loss concelament using a Recurrent Nueral Network
+Implemented with PyTorch
+
+Needs trained pytorch model plc_model.pth outpur from PLCModelLC
+
+2024
+spiral.ok.ubc.ca
+'''
+
+
 import torch
 import torch.nn as nn
 import torchaudio
 import pyaudio
 import numpy as np
+from random import random
 
 class PLCModel(nn.Module):
     def __init__(self, input_size, hidden_size, num_layers):
@@ -33,7 +46,7 @@ model.eval()
 
 # Function to simulate packet loss and conceal it
 def conceal_packet_loss(audio, last_valid_packet):
-    audio_tensor = torch.tensor(audio, dtype=torch.float16).unsqueeze(0).unsqueeze(-1).to(device)
+    audio_tensor = torch.tensor(audio, dtype=torch.float32).unsqueeze(0).unsqueeze(-1).to(device)
     corrupted_audio = audio_tensor.clone()
     if last_valid_packet is not None:
         corrupted_audio[corrupted_audio == 0] = last_valid_packet[corrupted_audio == 0]
@@ -55,20 +68,22 @@ def callback(indata, frame_count, time_info, status):
     if status:
         print(status)
 
-    audio_data = np.frombuffer(indata, dtype=np.float16)
+    audio_data = np.frombuffer(indata, dtype=np.int16).astype(np.float32) / 32768.0  # Normalize int16 data to float32
     
     # Detect packet loss: assuming zero data indicates a corrupt packet
-    if np.all(audio_data == 0):
+    #if np.all(audio_data == 0):
+    if random() < 0.1:
         print("Corrupt packet detected!")
         if last_valid_packet is not None:
             audio_data = conceal_packet_loss(audio_data, last_valid_packet)
     else:
-        last_valid_packet = torch.tensor(audio_data, dtype=torch.float16).unsqueeze(0).unsqueeze(-1).to(device)
+        last_valid_packet = torch.tensor(audio_data, dtype=torch.float32).unsqueeze(0).unsqueeze(-1).to(device)
 
-    return (audio_data.astype(np.float16).tobytes(), pyaudio.paContinue)
+    audio_data = (audio_data * 32768.0).astype(np.int16)  # Convert float32 data back to int16
+    return (audio_data.tobytes(), pyaudio.paContinue)
 
 # Open input stream
-stream = p.open(format=pyaudio.paFloat16,
+stream = p.open(format=pyaudio.paInt16,
                 channels=1,
                 rate=sampling_rate,
                 input=True,
